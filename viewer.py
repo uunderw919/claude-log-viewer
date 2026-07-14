@@ -74,7 +74,7 @@ def _iter_json_lines(path: Path):
 
 
 def _decode_dir_name(name: str) -> str:
-    """cwd が取れない時のフォールバック。'-Users-road-x' → '/Users/road/x'。"""
+    """cwd が取れない時のフォールバック。'-Users-me-proj' → '/Users/me/proj'。"""
     return name.replace("-", "/")
 
 
@@ -189,7 +189,10 @@ def parse_session(path: Path) -> list[dict]:
             msg = obj.get("message") or {}
             blocks = _blocks_from_message(msg)
             if blocks:
-                items.append({"role": "user", "blocks": blocks, "ts": ts})
+                # ツール結果だけの user 行は、モデルへの応答であって
+                # ユーザー発言ではないので assistant 側に寄せて描画する。
+                role = "tool_result" if all(b["kind"] == "tool_result" for b in blocks) else "user"
+                items.append({"role": role, "blocks": blocks, "ts": ts})
         elif t == "assistant":
             msg = obj.get("message") or {}
             blocks = _blocks_from_message(msg)
@@ -387,7 +390,7 @@ INDEX_HTML = r"""<!doctype html>
   .msg.user { justify-content: flex-end; }
   .bubble { max-width: 78%; padding: 4px 14px; border-radius: 10px; }
   .msg.user .bubble { background: var(--user); }
-  .msg.assistant .bubble { background: var(--panel); border: 1px solid var(--border); }
+  .msg.assistant .bubble, .msg.tool_result .bubble { background: var(--panel); border: 1px solid var(--border); }
   .msg.system .bubble, .msg.attachment .bubble {
     background: transparent; border: 1px dashed var(--border); color: var(--muted);
     max-width: 100%; font-size: 12px;
@@ -560,7 +563,8 @@ function renderConversation() {
     wrap.className = 'msg ' + item.role;
     wrap.dataset.idx = i;
     const inner = item.blocks.map(renderBlock).join('');
-    wrap.innerHTML = '<div><div class="role">' + item.role + '</div>' +
+    const label = item.role === 'tool_result' ? 'tool result' : item.role;
+    wrap.innerHTML = '<div><div class="role">' + label + '</div>' +
       '<div class="bubble">' + inner + '</div></div>';
     right.appendChild(wrap);
   });
