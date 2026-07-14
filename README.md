@@ -43,3 +43,7 @@ python3 viewer.py --dir /path/to/other/projects
 ## 動作環境
 
 macOS + Python 3.12 で確認。
+
+## ライセンス
+
+[MIT License](LICENSE)
